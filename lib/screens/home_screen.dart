@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/audio_note.dart';
 import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
@@ -17,6 +18,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final _storage = StorageService();
   List<AudioNote> _notes = [];
   String? _playingNoteId;
+  bool _isActuallyPlaying = false;
   bool _isLoading = true;
 
   @override
@@ -36,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _openRecording() async {
+    HapticFeedback.mediumImpact();
     final result = await Navigator.of(context).push<AudioNote>(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
@@ -57,13 +60,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _togglePlay(AudioNote note) {
     setState(() {
-      _playingNoteId = _playingNoteId == note.id ? null : note.id;
+      if (_playingNoteId == note.id) {
+        _playingNoteId = null;
+        _isActuallyPlaying = false;
+      } else {
+        _playingNoteId = note.id;
+        _isActuallyPlaying = true;
+      }
+    });
+  }
+
+  void _playNext() {
+    if (_playingNoteId == null) return;
+    final currentIndex = _notes.indexWhere((n) => n.id == _playingNoteId);
+    if (currentIndex == -1) return;
+    final nextIndex = (currentIndex + 1) % _notes.length;
+    setState(() {
+      _playingNoteId = _notes[nextIndex].id;
+      _isActuallyPlaying = true;
     });
   }
 
   void _deleteNote(String id) async {
+    HapticFeedback.mediumImpact();
     if (_playingNoteId == id) {
-      setState(() => _playingNoteId = null);
+      setState(() {
+        _playingNoteId = null;
+        _isActuallyPlaying = false;
+      });
     }
     await _storage.deleteNote(id);
     await _loadNotes();
@@ -164,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           final note = _notes[index];
           return NoteCard(
             note: note,
-            isPlaying: _playingNoteId == note.id,
+            isPlaying: _playingNoteId == note.id && _isActuallyPlaying,
             onPlay: () => _togglePlay(note),
             onDelete: () => _deleteNote(note.id),
           );
@@ -182,11 +206,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return const SizedBox.shrink();
     }
     final note = _notes[index];
+    final hasNext = _notes.length > 1;
     return AudioPlayerWidget(
       key: ValueKey(note.id),
       filePath: note.filePath,
       totalDuration: note.duration,
-      onClose: () => setState(() => _playingNoteId = null),
+      noteTitle: note.title,
+      onClose: () {
+        setState(() {
+          _playingNoteId = null;
+          _isActuallyPlaying = false;
+        });
+      },
+      onNext: hasNext ? _playNext : null,
+      onPlayStateChanged: (isPlaying) {
+        if (mounted) {
+          setState(() => _isActuallyPlaying = isPlaying);
+        }
+      },
     );
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/audio_note.dart';
 import '../theme/app_theme.dart';
@@ -36,7 +37,10 @@ class NoteCard extends StatelessWidget {
       onDismissed: (_) => onDelete(),
       child: Card(
         child: InkWell(
-          onTap: onPlay,
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onPlay();
+          },
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -58,6 +62,7 @@ class NoteCard extends StatelessWidget {
     return Container(
       width: 48,
       height: 48,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: isPlaying
             ? AppColors.primary

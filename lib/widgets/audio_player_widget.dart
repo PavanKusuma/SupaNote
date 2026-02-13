@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../services/audio_player_service.dart';
 import '../theme/app_theme.dart';
@@ -7,13 +8,19 @@ import '../theme/app_theme.dart';
 class AudioPlayerWidget extends StatefulWidget {
   final String filePath;
   final Duration totalDuration;
+  final String noteTitle;
   final VoidCallback? onClose;
+  final VoidCallback? onNext;
+  final ValueChanged<bool>? onPlayStateChanged;
 
   const AudioPlayerWidget({
     super.key,
     required this.filePath,
     required this.totalDuration,
+    required this.noteTitle,
     this.onClose,
+    this.onNext,
+    this.onPlayStateChanged,
   });
 
   @override
@@ -27,6 +34,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget>
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   bool _isPlaying = false;
+  bool _completed = false;
   late AnimationController _animController;
 
   @override
@@ -52,14 +60,18 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget>
       _player.stateStream.listen((state) {
         if (!mounted) return;
         final playing = state == PlayerState.playing;
-        setState(() => _isPlaying = playing);
+        setState(() {
+          _isPlaying = playing;
+          if (state == PlayerState.completed) {
+            _completed = true;
+            _position = _duration;
+          }
+        });
+        widget.onPlayStateChanged?.call(playing);
         if (playing) {
           _animController.forward();
         } else {
           _animController.reverse();
-        }
-        if (state == PlayerState.completed) {
-          setState(() => _position = Duration.zero);
         }
       }),
     );
@@ -78,10 +90,15 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget>
   }
 
   void _togglePlayPause() {
+    HapticFeedback.lightImpact();
     if (_isPlaying) {
       _player.pause();
     } else {
-      if (_position >= _duration) {
+      if (_completed || _position >= _duration) {
+        setState(() {
+          _completed = false;
+          _position = Duration.zero;
+        });
         _player.play(widget.filePath);
       } else {
         _player.resume();
@@ -90,10 +107,16 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget>
   }
 
   void _seekRelative(Duration offset) {
+    HapticFeedback.selectionClick();
     final newPos = _position + offset;
     _player.seek(Duration(
       milliseconds: newPos.inMilliseconds.clamp(0, _duration.inMilliseconds),
     ));
+  }
+
+  void _handleNext() {
+    HapticFeedback.mediumImpact();
+    widget.onNext?.call();
   }
 
   String _formatDuration(Duration d) {
@@ -128,17 +151,33 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget>
           // Close handle
           if (widget.onClose != null)
             GestureDetector(
-              onTap: widget.onClose,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                widget.onClose!();
+              },
               child: Container(
                 width: 36,
                 height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
+                margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: AppColors.divider,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
+
+          // Note title
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Text(
+              widget.noteTitle,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
 
           // Progress bar
           ClipRRect(
@@ -184,7 +223,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget>
                 iconSize: 32,
                 color: AppColors.textSecondary,
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
 
               // Play/Pause
               GestureDetector(
@@ -192,6 +231,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget>
                 child: Container(
                   width: 56,
                   height: 56,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(18),
@@ -204,7 +244,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget>
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
 
               // Forward 10s
               IconButton(
@@ -213,6 +253,17 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget>
                 iconSize: 32,
                 color: AppColors.textSecondary,
               ),
+
+              // Next button
+              if (widget.onNext != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  onPressed: _handleNext,
+                  icon: const Icon(Icons.skip_next_rounded),
+                  iconSize: 32,
+                  color: AppColors.textSecondary,
+                ),
+              ],
             ],
           ),
         ],
