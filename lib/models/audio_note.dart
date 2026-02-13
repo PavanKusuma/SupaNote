@@ -6,6 +6,7 @@ class AudioNote {
   final String filePath;
   final Duration duration;
   final DateTime createdAt;
+  final String? transcript;
 
   AudioNote({
     required this.id,
@@ -13,6 +14,7 @@ class AudioNote {
     required this.filePath,
     required this.duration,
     required this.createdAt,
+    this.transcript,
   });
 
   Map<String, dynamic> toJson() => {
@@ -21,6 +23,7 @@ class AudioNote {
         'filePath': filePath,
         'durationMs': duration.inMilliseconds,
         'createdAt': createdAt.toIso8601String(),
+        if (transcript != null) 'transcript': transcript,
       };
 
   factory AudioNote.fromJson(Map<String, dynamic> json) => AudioNote(
@@ -29,6 +32,7 @@ class AudioNote {
         filePath: json['filePath'] as String,
         duration: Duration(milliseconds: json['durationMs'] as int),
         createdAt: DateTime.parse(json['createdAt'] as String),
+        transcript: json['transcript'] as String?,
       );
 
   static String encodeList(List<AudioNote> notes) =>

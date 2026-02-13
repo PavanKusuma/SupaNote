@@ -43,6 +43,8 @@
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>SupaNote needs microphone access to record audio notes.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>SupaNote uses speech recognition to transcribe your audio notes.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

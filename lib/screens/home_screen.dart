@@ -5,6 +5,7 @@ import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/note_card.dart';
 import '../widgets/audio_player_widget.dart';
+import 'note_detail_screen.dart';
 import 'recording_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -79,6 +80,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _playingNoteId = _notes[nextIndex].id;
       _isActuallyPlaying = true;
     });
+  }
+
+  void _openDetail(AudioNote note) {
+    // Close the bottom player if open
+    if (_playingNoteId != null) {
+      setState(() {
+        _playingNoteId = null;
+        _isActuallyPlaying = false;
+      });
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => NoteDetailScreen(note: note),
+      ),
+    );
   }
 
   void _deleteNote(String id) async {
@@ -191,6 +207,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             isPlaying: _playingNoteId == note.id && _isActuallyPlaying,
             onPlay: () => _togglePlay(note),
             onDelete: () => _deleteNote(note.id),
+            onTap: () => _openDetail(note),
           );
         },
       ),

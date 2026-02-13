@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import '../models/audio_note.dart';
 import '../services/audio_recorder_service.dart';
+import '../services/speech_service.dart';
 import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/waveform_painter.dart';
@@ -19,6 +20,7 @@ class RecordingScreen extends StatefulWidget {
 class _RecordingScreenState extends State<RecordingScreen>
     with TickerProviderStateMixin {
   final _recorder = AudioRecorderService();
+  final _speech = SpeechService();
   final _storage = StorageService();
   final _titleController = TextEditingController();
 
@@ -82,8 +84,12 @@ class _RecordingScreenState extends State<RecordingScreen>
       }),
     );
 
-    // Auto-start recording
-    _startRecording();
+    _initSpeechAndRecord();
+  }
+
+  Future<void> _initSpeechAndRecord() async {
+    await _speech.initialize();
+    await _startRecording();
   }
 
   @override
@@ -95,20 +101,24 @@ class _RecordingScreenState extends State<RecordingScreen>
     _fadeController.dispose();
     _titleController.dispose();
     _recorder.dispose();
+    _speech.dispose();
     super.dispose();
   }
 
   Future<void> _startRecording() async {
     HapticFeedback.mediumImpact();
     await _recorder.startRecording();
+    await _speech.startListening();
   }
 
   Future<void> _togglePauseResume() async {
     HapticFeedback.lightImpact();
     if (_state == RecordingState.recording) {
       await _recorder.pauseRecording();
+      await _speech.pauseListening();
     } else if (_state == RecordingState.paused) {
       await _recorder.resumeRecording();
+      await _speech.resumeListening();
     }
   }
 
@@ -116,6 +126,8 @@ class _RecordingScreenState extends State<RecordingScreen>
     HapticFeedback.mediumImpact();
     final filePath = await _recorder.stopRecording();
     if (filePath == null) return;
+
+    final transcript = await _speech.stopListening();
 
     setState(() => _isSaving = true);
     _fadeController.forward();
@@ -138,6 +150,7 @@ class _RecordingScreenState extends State<RecordingScreen>
       filePath: filePath,
       duration: _elapsed,
       createdAt: DateTime.now(),
+      transcript: transcript.isNotEmpty ? transcript : null,
     );
 
     await _storage.addNote(note);
@@ -169,6 +182,7 @@ class _RecordingScreenState extends State<RecordingScreen>
     );
 
     if (confirm == true) {
+      _speech.dispose();
       await _recorder.cancelRecording();
       if (mounted) Navigator.of(context).pop();
     }

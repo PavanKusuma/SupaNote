@@ -9,6 +9,7 @@ class NoteCard extends StatelessWidget {
   final bool isPlaying;
   final VoidCallback onPlay;
   final VoidCallback onDelete;
+  final VoidCallback? onTap;
 
   const NoteCard({
     super.key,
@@ -16,6 +17,7 @@ class NoteCard extends StatelessWidget {
     required this.isPlaying,
     required this.onPlay,
     required this.onDelete,
+    this.onTap,
   });
 
   @override
@@ -37,19 +39,31 @@ class NoteCard extends StatelessWidget {
       onDismissed: (_) => onDelete(),
       child: Card(
         child: InkWell(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            onPlay();
-          },
+          onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                _buildPlayButton(),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    onPlay();
+                  },
+                  child: _buildPlayButton(),
+                ),
                 const SizedBox(width: 14),
                 Expanded(child: _buildInfo(context)),
                 _buildDuration(context),
+                if (onTap != null) ...[
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textTertiary,
+                    size: 20,
+                  ),
+                ],
               ],
             ),
           ),
