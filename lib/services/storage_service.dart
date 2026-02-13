@@ -50,12 +50,14 @@ class StorageService {
 
   Future<void> deleteNote(String id) async {
     final notes = await loadNotes();
-    final note = notes.firstWhere((n) => n.id == id);
+    final index = notes.indexWhere((n) => n.id == id);
+    if (index == -1) return;
+    final note = notes[index];
     final file = File(note.filePath);
     if (await file.exists()) {
       await file.delete();
     }
-    notes.removeWhere((n) => n.id == id);
+    notes.removeAt(index);
     await saveNotes(notes);
   }
 

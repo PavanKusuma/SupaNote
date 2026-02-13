@@ -174,7 +174,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildPlayer() {
-    final note = _notes.firstWhere((n) => n.id == _playingNoteId);
+    final index = _notes.indexWhere((n) => n.id == _playingNoteId);
+    if (index == -1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _playingNoteId = null);
+      });
+      return const SizedBox.shrink();
+    }
+    final note = _notes[index];
     return AudioPlayerWidget(
       key: ValueKey(note.id),
       filePath: note.filePath,

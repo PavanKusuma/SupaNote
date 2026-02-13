@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../services/audio_player_service.dart';
@@ -22,6 +23,7 @@ class AudioPlayerWidget extends StatefulWidget {
 class _AudioPlayerWidgetState extends State<AudioPlayerWidget>
     with SingleTickerProviderStateMixin {
   final _player = AudioPlayerService();
+  final List<StreamSubscription> _subscriptions = [];
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   bool _isPlaying = false;
@@ -36,31 +38,40 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget>
       duration: const Duration(milliseconds: 300),
     );
 
-    _player.positionStream.listen((pos) {
-      if (mounted) setState(() => _position = pos);
-    });
-    _player.durationStream.listen((dur) {
-      if (mounted && dur.inMilliseconds > 0) setState(() => _duration = dur);
-    });
-    _player.stateStream.listen((state) {
-      if (!mounted) return;
-      final playing = state == PlayerState.playing;
-      setState(() => _isPlaying = playing);
-      if (playing) {
-        _animController.forward();
-      } else {
-        _animController.reverse();
-      }
-      if (state == PlayerState.completed) {
-        setState(() => _position = Duration.zero);
-      }
-    });
+    _subscriptions.add(
+      _player.positionStream.listen((pos) {
+        if (mounted) setState(() => _position = pos);
+      }),
+    );
+    _subscriptions.add(
+      _player.durationStream.listen((dur) {
+        if (mounted && dur.inMilliseconds > 0) setState(() => _duration = dur);
+      }),
+    );
+    _subscriptions.add(
+      _player.stateStream.listen((state) {
+        if (!mounted) return;
+        final playing = state == PlayerState.playing;
+        setState(() => _isPlaying = playing);
+        if (playing) {
+          _animController.forward();
+        } else {
+          _animController.reverse();
+        }
+        if (state == PlayerState.completed) {
+          setState(() => _position = Duration.zero);
+        }
+      }),
+    );
 
     _player.play(widget.filePath);
   }
 
   @override
   void dispose() {
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
     _animController.dispose();
     _player.dispose();
     super.dispose();

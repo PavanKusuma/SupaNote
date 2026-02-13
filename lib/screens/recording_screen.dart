@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
@@ -70,7 +71,13 @@ class _RecordingScreenState extends State<RecordingScreen>
     _subscriptions.add(
       _recorder.amplitudeStream.listen((amp) {
         if (mounted) {
-          setState(() => _amplitudes.add(amp));
+          setState(() {
+            _amplitudes.add(amp);
+            // Keep only the most recent samples to avoid unbounded growth
+            if (_amplitudes.length > 1000) {
+              _amplitudes.removeRange(0, _amplitudes.length - 1000);
+            }
+          });
         }
       }),
     );
@@ -116,8 +123,11 @@ class _RecordingScreenState extends State<RecordingScreen>
     final title = await _showTitleDialog();
 
     if (title == null) {
-      // User cancelled - delete the file
-      await _recorder.cancelRecording();
+      // User cancelled - delete the recorded file directly
+      try {
+        final file = File(filePath);
+        if (await file.exists()) await file.delete();
+      } catch (_) {}
       if (mounted) Navigator.of(context).pop();
       return;
     }
